@@ -1,30 +1,22 @@
-const nodemailer = require("nodemailer");
- 
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 /**
  * sendEmail(to, otp, type)
  * @param {string} to    - recipient email
  * @param {string} otp   - 6-digit OTP string
  * @param {string} type  - "login" | "signup"
+ *
+ * 
  */
 const sendEmail = async (to, otp, type = "login") => {
-  const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
- 
   const isSignup = type === "signup";
- 
+
   const subject = isSignup
     ? "Welcome to CampusDeals – Verify your email"
     : "Your CampusDeals login code";
- 
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -39,7 +31,7 @@ const sendEmail = async (to, otp, type = "login") => {
               <table width="480" cellpadding="0" cellspacing="0"
                 style="background:#fffaf6;border-radius:16px;overflow:hidden;
                        box-shadow:0 4px 24px rgba(0,0,0,0.08);">
- 
+
                 <!-- Header bar -->
                 <tr>
                   <td style="background:linear-gradient(90deg,#f97316,#ef4444);
@@ -50,7 +42,7 @@ const sendEmail = async (to, otp, type = "login") => {
                     </p>
                   </td>
                 </tr>
- 
+
                 <!-- Body -->
                 <tr>
                   <td style="padding:36px 40px 28px;">
@@ -65,7 +57,7 @@ const sendEmail = async (to, otp, type = "login") => {
                       }
                       <br/>This code is valid for <strong>5 minutes</strong>.
                     </p>
- 
+
                     <!-- OTP box -->
                     <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
                       <tr>
@@ -78,14 +70,14 @@ const sendEmail = async (to, otp, type = "login") => {
                         </td>
                       </tr>
                     </table>
- 
+
                     <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.6;">
                       If you didn't request this, you can safely ignore this email.
                       <br/>Never share this code with anyone.
                     </p>
                   </td>
                 </tr>
- 
+
                 <!-- Footer -->
                 <tr>
                   <td style="padding:16px 40px;border-top:1px solid #f3f4f6;">
@@ -94,7 +86,7 @@ const sendEmail = async (to, otp, type = "login") => {
                     </p>
                   </td>
                 </tr>
- 
+
               </table>
             </td>
           </tr>
@@ -102,16 +94,24 @@ const sendEmail = async (to, otp, type = "login") => {
       </body>
     </html>
   `;
- 
-  const mailOptions = {
-    from: `"CampusDeals" <${process.env.EMAIL_USER}>`,
+
+  const { data, error } = await resend.emails.send({
+    // Use "onboarding@resend.dev" while testing (no domain verification needed).
+    // Once you verify your own domain on resend.com, switch this to
+    // something like "CampusDeals <noreply@yourdomain.com>".
+    from: "CampusDeals <onboarding@resend.dev>",
     to,
     subject,
-    text: `Your CampusDeals OTP is: ${otp}\nValid for 5 minutes.`,
     html,
-  };
- 
-  await transporter.sendMail(mailOptions);
+    text: `Your CampusDeals OTP is: ${otp}\nValid for 5 minutes.`,
+  });
+
+  if (error) {
+    console.error("❌ Resend failed to send email:", error);
+    throw new Error(error.message || "Failed to send email");
+  }
+
+  return data;
 };
- 
+
 module.exports = sendEmail;
